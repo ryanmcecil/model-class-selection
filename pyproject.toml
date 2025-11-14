@@ -2,9 +2,6 @@
 name = "MCS"
 version = "0.0.0"
 description = "Tools for experimenting with model class selection methods"
-authors = [
-    {name = "Ryan Cecil",email = "ryanmcecil@gmail.com"}
-]
 readme = "Readme.md"
 requires-python = "^3.9"
 dependencies = [
