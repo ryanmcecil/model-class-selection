@@ -43,10 +43,10 @@ def normal_sample(n):
     return np.concatenate([X, y.reshape(-1, 1)], axis=1)
 
 def alg_null(data):
-    return LinReg(coef_to_use=[True, True, False]).fit(data)
+    return LinReg(coef_to_use=[True, False, True]).fit(data)
 
 def alg_alt(data):
-    return LinReg(coef_to_use=[True, False, True]).fit(data)
+    return LinReg(coef_to_use=[True, True, False]).fit(data)
 
 def compute_sim(index, n, data_splits, method_args, alpha):
     x = normal_sample(n)
@@ -65,12 +65,14 @@ if __name__ == '__main__':
         'SUI':{
             'standardization': 'clt',
             'cons': False,
-            'decision_type': 'normal'
+            'decision_type': 'normal',
+            'epsilon': 1e-6
         },
         'SUIInf':{
            'standardization': 'clt',
             'cons': True,
-            'decision_type': 'normal' 
+            'decision_type': 'normal',
+            'epsilon': 1e-6
         }
     }
 
@@ -120,7 +122,7 @@ if __name__ == '__main__':
             
     print('Saving Plot')
     fig.supxlabel('Sample Size', fontsize=18)
-    fig.supylabel('Estimated Type I Erorr', fontsize=18)
+    fig.supylabel('Estimated Type I Error', fontsize=18)
     axs[0].set_title(r'$\phi^{\mathrm{Holdout}}_{\mathrm{CLT}}$', fontsize = 20)
     axs[1].set_title(r'$\phi^{inf}_{\mathrm{CLT}}$', fontsize = 20)
     for j in range(len(axs)):
@@ -132,7 +134,7 @@ if __name__ == '__main__':
         ticks = [1e2, 1e3, 1e4, 1e5]
         axs[j].set_xticks(ticks, [r'$10^2$', r'$10^3$', r'$10^4$', r'$10^5$'], fontsize = 14)
     legend_elements = [
-    Line2D([0], [0], color=plt.cm.tab10(0), lw=2, label=r'$n$', linestyle=lstls[0]),
+    Line2D([0], [0], color=plt.cm.tab10(0), lw=2, label=r'$n/2$', linestyle=lstls[0]),
     Line2D([0], [0], color=plt.cm.tab10(1), lw=2, label=r'$\sqrt{n}$', linestyle=lstls[1]),
     Line2D([0], [0], color=plt.cm.tab10(2), lw=2, label=r'$\sqrt[3]{n}$', linestyle=lstls[2]),
 ]

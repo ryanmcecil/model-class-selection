@@ -57,18 +57,21 @@ class MCSM():
                  standardization: str = None,
                  cons: bool = True,
                  omega: int = 1,
+                 epsilon: float = 0.0,
                  **kwargs):
         if cons:
             stats = self.stats_cons
         else:
             stats = self.stats
 
+        m = np.asarray(self.test_fold_sizes, dtype=float)
         if standardization == 'clt':
-            stats = np.sum(stats, axis=1)
-            sds = np.mean(self.sds, axis=1)
+            stats = np.sum(stats, axis=1) - epsilon*self.n_heldout
+            var_unbiased = self.sds**2 * m / (m-1)
+            sds = np.sqrt(np.mean(var_unbiased, axis=1))
             stats = stats / np.maximum((np.sqrt(self.n_heldout)*sds), 1e-10)
         elif standardization == 'ui':
-            stats = np.sum(np.exp(omega*stats - np.log(self.n_folds)), axis=1)
+            stats = np.sum(np.exp(omega* (stats - epsilon * m) - np.log(self.n_folds)), axis=1)
         else:
             raise Exception(f'Unknown standardization type {standardization}')
         

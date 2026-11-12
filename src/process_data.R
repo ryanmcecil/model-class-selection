@@ -1,6 +1,7 @@
 library(readr)
 library(dplyr)
 library(fastDummies)
+library(readxl)
 
 save_data <- function(df, dataset_name){
   Y <- df %>% select(Y)
@@ -109,13 +110,23 @@ adult[adult == '?'] = NA
 adult <- na.omit(adult)
 adult$workclass <- as.factor(adult$workclass)
 adult$fnlwgt <- NULL
-adult$education <- as.factor(adult$education)
 adult$`marital-status` <- as.factor(adult$`marital-status`)
 adult$occupation <- as.factor(adult$occupation)
 adult$relationship <- as.factor(adult$relationship)
 adult$race <- as.factor(adult$race)
 adult$sex <- as.factor(adult$sex)
-adult$`native-country` <- as.factor(adult$`native-country`)
+adult$education <- NULL
+adult$`native-country` <- factor(ifelse(adult$`native-country` == " United-States", "US", "Non-US"))
+adult$workclass <- fct_collapse(adult$workclass,
+  Gov = c(" Federal-gov", " Local-gov", " State-gov"),
+  SelfEmp = c(" Self-emp-inc", " Self-emp-not-inc"),
+  Private = c(" Private", " Without-pay"))
+adult$`marital-status` <- fct_collapse(adult$`marital-status`,
+  Married = c(" Married-civ-spouse", " Married-AF-spouse"))
+adult$occupation <- fct_collapse(adult$occupation,
+  ProtectiveArmed = c(" Protective-serv", " Armed-Forces"),
+  OtherService = c(" Other-service", " Priv-house-serv"))
+
 adult$Y <- adult$income
 adult$income <- NULL
 adult$Y <- as.numeric(as.factor(adult$Y)) - 1
@@ -126,8 +137,8 @@ german <- read.csv("german.data", header=FALSE, sep = " ")
 german$V1 <- as.factor(german$V1)
 german$V3 <- as.factor(german$V3)
 german$V4 <- as.factor(german$V4)
-german$V6 <- as.factor(german$V7)
-german$V6 <- as.factor(german$V7)
+german$V6 <- as.factor(german$V6)
+german$V7 <- as.factor(german$V7)
 german$V9 <- as.factor(german$V9)
 german$V10 <- as.factor(german$V10)
 german$V12 <- as.factor(german$V12)
@@ -136,6 +147,9 @@ german$V15 <- as.factor(german$V15)
 german$V17 <- as.factor(german$V17)
 german$V19 <- as.factor(german$V19)
 german$V20 <- as.factor(german$V20)
+german$V4  <- fct_collapse(as.factor(german$V4), A4other = c("A44", "A45", "A48", "A410"))
+german$V17 <- fct_collapse(as.factor(german$V17), A17unskilled = c("A171", "A172"))
+german$V20 <- NULL
 german$Y <- german$V21
 german$V21 <- NULL
 german$Y <- german$Y - 1
@@ -156,7 +170,7 @@ auto <- auto[!auto$horsepower == "?", ]
 auto$car.name <- NULL
 auto$Y <- auto$mpg
 auto$mpg <- NULL
-auto$horsepower <- as.numeric(auto$horsepower)
+auto$horsepower <- as.numeric(as.character(auto$horsepower))
 auto$origin <- as.factor(auto$origin)
 save_data(auto, 'auto')
 
@@ -176,13 +190,17 @@ bike$cnt <- NULL
 bike$instant <- NULL
 bike$casual <- NULL
 bike$registered <- NULL
+bike$atemp <- NULL
+bike <- bike[bike$hum != 0, ]
+bike$Y <- bike$Y / 100
 save_data(bike, 'bike')
 
 # wine quality dataset
-wine <- read.csv("winequality-red.csv", header=TRUE, sep = ";")
-wine$Y <- wine$quality
-wine$quality <- NULL
-save_data(wine, 'wine')
+wine_w <- read.csv("winequality-white.csv", header = TRUE, sep = ";")
+wine_w <- unique(wine_w)
+wine_w$Y <- wine_w$quality
+wine_w$quality <- NULL
+save_data(wine_w, 'wine')
 
 # abalone
 load('RealData.RData') # From Mentch, Siyu
@@ -196,9 +214,24 @@ concrete$Concrete.compressive.strength.MPa..megapascals.. <- NULL
 save_data(concrete, 'concrete')
 
 # Comp hardware performance
+url <- "https://archive.ics.uci.edu/static/public/29/computer+hardware.zip"
+tmp <- tempfile(fileext = ".zip")
+download.file(url, tmp, mode = "wb")
+cpu <- read.csv(
+  unz(tmp, "machine.data"),
+  header = FALSE,
+  col.names = c("vendor", "model", "MYCT", "MMIN", "MMAX",
+                "CACH", "CHMIN", "CHMAX", "PRP", "ERP"),
+  stringsAsFactors = FALSE
+)
+unlink(tmp)
+cpu$model <- NULL
+cpu$ERP <- NULL
 cpu$vendor <- as.factor(cpu$vendor)
 cpu$Y <- cpu$PRP
 cpu$PRP <- NULL
+cpu$vendor <- fct_lump_min(as.factor(cpu$vendor), min = 5)
+cpu$Y <- cpu$Y / 100
 save_data(cpu, 'cpm')
 
 # CSM
@@ -241,12 +274,9 @@ fb$Y <- fb$Total.Interactions
 fb$Total.Interactions <- NULL
 fb$Post.Hour <- NULL
 fb = na.omit(fb)
+fb <- fb[fb$Y < 1000, ]
+fb$Y <- fb$Y / 10
 save_data(fb, 'fb')
-
-# Parkinsons
-parkinsons$Y <- parkinsons$total_UPDRS
-parkinsons$total_UPDRS <- NULL
-save_data(parkinsons, 'parkinsons')
 
 # Servo
 servo <- read.table('servo.data', sep = ',')
@@ -257,6 +287,17 @@ servo$V5 <- NULL
 save_data(servo, 'servo')
 
 # Melting Point
+url <- "https://api.openml.org/data/v1/download/52542/mtp2.arff"
+tmp <- tempfile(fileext = ".arff")
+download.file(url, tmp, mode = "wb")
+mtp2 <- foreign::read.arff(tmp)
+dim(mtp2)   # should be 274 x 1143
+desc <- setdiff(names(mtp2), "oz1143")
+near_const <- sapply(mtp2[desc], function(v) max(table(v)) / length(v) > 0.95)
+mtp2 <- mtp2[, c(desc[!near_const], "oz1143")]
+desc <- setdiff(names(mtp2), "oz1143")
+dominated <- sapply(mtp2[desc], function(v) isTRUE(max(abs(scale(v))) > 10))
+mtp2 <- mtp2[, c(desc[!dominated], "oz1143")]
 mtp2$Y <- mtp2$oz1143
 mtp2$oz1143 <- NULL
 save_data(mtp2, 'meltingpoint')

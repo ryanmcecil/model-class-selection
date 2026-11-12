@@ -3,7 +3,7 @@
 ########################################
 import numpy as np
 import matplotlib.pyplot as plt
-from multiprocessing import Pool
+from multiprocessing import Pool, set_start_method
 from functools import partial
 from mcsm import MCSM
 from matplotlib.lines import Line2D
@@ -12,17 +12,19 @@ import os
 from config import Env
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 class Model():
     def __init__(self, reg, model):
         if reg:
             if model == 'linear':
-                self.model = LinearRegression()
+                self.model = make_pipeline(StandardScaler(), LinearRegression())
             else:
                 self.model = RandomForestRegressor(criterion='squared_error')
         else:
             if model == 'linear':
-                self.model = LogisticRegression()
+                self.model = make_pipeline(StandardScaler(), LogisticRegression(penalty = None, max_iter=10000))
             else:
                 self.model = RandomForestClassifier(criterion='log_loss', n_estimators=1000)
         self.reg = reg
@@ -52,7 +54,7 @@ alg_alt = partial(alg, model = 'rf')
 
 def add_noise(data, rho, reg):
     data = np.copy(data)
-    y = data[:, -1]
+    y = data[:, -1] 
     if reg:
         if rho != 0:
             sd = np.std(y)
@@ -80,6 +82,8 @@ def recompute_sim(index, mstats, data_splits, method_args, alpha):
     return ds
 
 if __name__ == '__main__':
+
+    set_start_method('spawn') # Fix rng linux duplicate problem
 
     env = Env()
 
@@ -120,7 +124,7 @@ if __name__ == '__main__':
             n = len(data)
             data_splits_from_name = {
                 'Holdout': [(np.array(range(n // 2)), np.array(range(n // 2, n)))],
-                '10-Fold CV': list(KFold(n_splits = 10).split(range(n)))
+                '10-Fold CV': list(KFold(n_splits = 10, shuffle=True).split(range(n)))
             }
 
             for j, (data_split_name, data_splits) in enumerate(data_splits_from_name.items()):

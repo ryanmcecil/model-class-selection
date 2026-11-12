@@ -208,7 +208,8 @@ if __name__ == '__main__':
                     print(data_split_name)
                     power = np.empty((len(method_args_from_name), len(snrs)))
                     coverage = np.empty((len(method_args_from_name), len(snrs)))
-                    size = np.empty((len(method_args_from_name), len(snrs)))
+                    size_mean = np.empty((len(method_args_from_name), len(snrs)))
+                    size_se = np.empty((len(method_args_from_name), len(snrs)))
                     method_args = method_args_from_name
                     for k, snr in enumerate(snrs):
                         for method in method_args_from_name.keys():
@@ -221,9 +222,9 @@ if __name__ == '__main__':
                                     else:
                                         omega_null_alg = partial(alg_null_star, coef = np.asarray([1, 0]* (p // 2)))
                                     if model_type == 'linear':
-                                        file = os.path.join(data_folder, f'scc_estimates_cons={cons}_n={len(data_splits[0][0])}_snr={snr}_rho={rho}_p={p}.npy')
+                                        file = os.path.join(data_folder, f'scc_estimates_cons={cons}_n={len(data_splits[0][0])}_snr={snr}_rho={rho}_p={p}.npz')
                                     else:
-                                        file = os.path.join(data_folder, f'scc_estimates_cons={cons}_n={len(data_splits[0][0])}_model_type={model_type}_snr={snr}_rho={rho}_p={p}.npy')
+                                        file = os.path.join(data_folder, f'scc_estimates_cons={cons}_n={len(data_splits[0][0])}_model_type={model_type}_snr={snr}_rho={rho}_p={p}.npz')
                                     omega = estimate_scc(dgp = partial(linear_model_sample, snr = snr, rho = rho, p = p), 
                                                 alg_null = omega_null_alg,
                                                 alg_alt=partial(alg_alt, model_type = model_type),
@@ -254,7 +255,9 @@ if __name__ == '__main__':
                             np.save(np_file, mstat)
 
                         ds = np.asarray(ds)
-                        size[:, k] = 1-np.mean(ds, axis=(0,2))
+                        set_sizes = np.sum(ds == 0, axis=2) + 1
+                        size_mean[:, k] = set_sizes.mean(axis=0)
+                        size_se[:, k] = set_sizes.std(axis=0, ddof=1) / np.sqrt(n_trials)
                         power[:, k] = np.mean(ds[:, :, -1], axis=0)
                         coverage[:, k] = np.mean(np.all(ds[:,:,correct_idx] == 0, axis=2), axis=0)
                         print(coverage[:, k])
@@ -272,8 +275,8 @@ if __name__ == '__main__':
                                                     color = plt.cm.tab10(cnt),
                                                     linestyle=linestyles[cnt]
                                                 )
-                            axs[1,m].errorbar(snrs, 62*size[i,:],
-                                                    yerr=62*(1.96*np.sqrt(size[i,:]*(1-size[i,:]) / n_trials)),
+                            axs[1,m].errorbar(snrs, size_mean[i,:],
+                                                    yerr=1.96*size_se[i,:],
                                                     fmt='o',          
                                                     capsize=2,           
                                                     elinewidth=1,     

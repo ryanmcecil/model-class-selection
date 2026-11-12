@@ -141,7 +141,7 @@ if __name__ == '__main__':
                                          B = 10000,
                                          pool = p,
                                          n = len(data_splits[0][0]),
-                                         np_file = os.path.join(data_folder, f'scc_estimates_cons={cons}_n={len(data_splits[0][0])}_n_estimator={n_estimator}.npy'))
+                                         np_file = os.path.join(data_folder, f'scc_estimates_cons={cons}_n={len(data_splits[0][0])}_n_estimator={n_estimator}.npz'))
                             method_args_from_name[method]['omega'] = omega
                             print(cons)
                             print(omega)

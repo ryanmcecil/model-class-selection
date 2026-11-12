@@ -3,6 +3,10 @@
 ########################################
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.linear_model import RidgeCV
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.compose import ColumnTransformer
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
@@ -17,19 +21,22 @@ class Model():
     def __init__(self, reg, model):
         if reg:
             if model == 'linear':
-                self.model = LinearRegression()
+                self.model = make_pipeline(StandardScaler(), LinearRegression())
             else:
                 self.model = RandomForestRegressor(criterion='squared_error')
         else:
             if model == 'linear':
-                self.model = LogisticRegression()
+                self.model = make_pipeline(StandardScaler(), LogisticRegression(penalty = None, max_iter=10000))
             else:
                 self.model = RandomForestClassifier(criterion='log_loss', n_estimators=1000)
         self.reg = reg
+        self.model_type = model
 
     def fit(self, data):
         X = data[:, :-1]
         y = data[:, -1]
+        if self.reg and self.model_type == 'linear' and X.shape[1] >= X.shape[0]:
+            self.model = make_pipeline(StandardScaler(), RidgeCV(alphas=np.logspace(-4, 6, 50)))
         self.model.fit(X, y)
         return self
     
@@ -68,7 +75,7 @@ if __name__ == '__main__':
 
     alpha = 0.1
     datasets = ['adult', 'german', 'compas', 'telco', 'monks',
-                'boston', 'auto', 'bike', 'abalone', 'concrete', 'cpm', 'csm', 'fb', 'parkinsons', 'servo', 'meltingpoint']
+                'boston', 'auto', 'bike', 'abalone', 'concrete', 'cpm', 'csm', 'fb', 'wine', 'servo', 'meltingpoint']
     dataset_names = ['Adult Income',
                      'German Credit',
                      'COMPAS',
@@ -82,7 +89,7 @@ if __name__ == '__main__':
                      'CPU',
                      'CSM',
                      'Facebook Metrics',
-                     'Parkinsons',
+                     'Wine Quality',
                      'Servo System',
                      'Melting Point'
                      ]
@@ -114,7 +121,7 @@ Dataset & Task & n & Features & Statistic & Decision \\
         y = np.loadtxt(os.path.join(env.datamat_dir, f'{dataset}_Y_mat.csv'), delimiter=',', skiprows=1)
         data = np.concatenate([X, y.reshape(-1, 1)], axis=1)
 
-        data_split = list(KFold(n_splits = 10).split(range(len(data))))
+        data_split = list(KFold(n_splits = 10, shuffle=True).split(range(len(data))))
 
         r, c = divmod(d, ncols)
         ax = axes[r][c]
@@ -143,7 +150,7 @@ Dataset & Task & n & Features & Statistic & Decision \\
             decision = 'Fail to Reject'
         if regs[d]: task = 'Regression' 
         else: task = 'Classification'
-        features = data.shape[1]
+        features = X.shape[1]
         print(f"{dataset}: {decision}. n: {len(data)}. Stat: {stats[0]}. Task: {task}. Number of Features: {features}")
         latex_table += f"{dataset} & {task} & {len(data)} & {features} & {stats[0]:.2f} & {decision} \\\\\n"
 
@@ -159,5 +166,5 @@ Dataset & Task & n & Features & Statistic & Decision \\
 \label{fig:rl-cv-results}
 \end{table}
 """
-Path(os.path.join(env.table_dir, f'{base_filename}.tex')).write_text(latex_table)
-plt.savefig(os.path.join(env.plot_dir, f'{base_filename}.png'))
+    Path(os.path.join(env.table_dir, f'{base_filename}.tex')).write_text(latex_table)
+    plt.savefig(os.path.join(env.plot_dir, f'{base_filename}.png'))
